@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conway's Game of Life</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Conway's Game of Life</h1>
+    </header>
+
+    <main>
+      <div id="canvas-container">
+        <canvas id="game-canvas"></canvas>
+      </div>
+
+      <aside id="controls-panel">
+        <!-- Playback -->
+        <section class="control-group">
+          <h2>Playback</h2>
+          <div class="btn-row">
+            <button id="btn-play-pause" class="btn primary" title="Space">▶ Play</button>
+            <button id="btn-step" class="btn" title="→">⏭ Step</button>
+            <button id="btn-clear" class="btn danger" title="C">✕ Clear</button>
+          </div>
+        </section>
+
+        <!-- Speed -->
+        <section class="control-group">
+          <h2>Speed</h2>
+          <div class="speed-row">
+            <input
+              id="speed-slider"
+              type="range"
+              min="0.5"
+              max="30"
+              step="0.5"
+              value="5"
+            />
+            <span id="speed-label">5 TPS</span>
+          </div>
+        </section>
+
+        <!-- Draw mode -->
+        <section class="control-group">
+          <h2>Draw Mode</h2>
+          <div class="btn-row">
+            <button id="btn-draw-alive" class="btn active" data-mode="alive">Draw Alive</button>
+            <button id="btn-draw-dead" class="btn" data-mode="dead">Draw Dead</button>
+          </div>
+        </section>
+
+        <!-- Presets -->
+        <section class="control-group">
+          <h2>Presets</h2>
+          <select id="preset-select">
+            <option value="">— select preset —</option>
+          </select>
+          <button id="btn-load-preset" class="btn">Load</button>
+        </section>
+
+        <!-- Display options -->
+        <section class="control-group">
+          <h2>Display</h2>
+          <label class="checkbox-label">
+            <input type="checkbox" id="chk-gridlines" checked />
+            Show grid lines
+          </label>
+        </section>
+
+        <!-- Status bar -->
+        <section id="status-bar">
+          <div class="status-item">
+            <span class="status-key">Generation</span>
+            <span class="status-val" id="stat-generation">0</span>
+          </div>
+          <div class="status-item">
+            <span class="status-key">Alive</span>
+            <span class="status-val" id="stat-alive">0</span>
+          </div>
+          <div class="status-item">
+            <span class="status-key">TPS</span>
+            <span class="status-val" id="stat-tps">5.0</span>
+          </div>
+          <div class="status-item">
+            <span class="status-key">Status</span>
+            <span class="status-val" id="stat-status">Paused</span>
+          </div>
+        </section>
+
+        <!-- Keyboard shortcuts -->
+        <section id="shortcuts">
+          <h2>Keyboard</h2>
+          <table>
+            <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+            <tr><td><kbd>→</kbd></td><td>Step</td></tr>
+            <tr><td><kbd>C</kbd></td><td>Clear</td></tr>
+          </table>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

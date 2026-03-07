@@ -1,0 +1,328 @@
+/* ============================================================
+   Conway's Game of Life — Dark theme
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-2: #242736;
+  --border: #2e3248;
+  --text: #e2e4f0;
+  --text-muted: #7880a0;
+  --accent: #5b7cf7;
+  --accent-hover: #7293ff;
+  --danger: #e05252;
+  --danger-hover: #f06060;
+  --success: #52c47a;
+  --cell-alive: #5b7cf7;
+  --cell-dead: #0f1117;
+  --grid-line: rgba(255,255,255,0.04);
+
+  --radius: 6px;
+  --gap: 12px;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---- Header ---- */
+header {
+  padding: 10px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+/* ---- Main layout ---- */
+main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ---- Canvas ---- */
+#canvas-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  overflow: hidden;
+  padding: 8px;
+}
+
+#game-canvas {
+  display: block;
+  cursor: crosshair;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  image-rendering: pixelated;
+}
+
+/* ---- Controls panel ---- */
+#controls-panel {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group h2 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* ---- Buttons ---- */
+.btn {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--border);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn.danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-row .btn {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+/* ---- Speed slider ---- */
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#speed-slider {
+  flex: 1;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+
+#speed-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+#speed-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+#speed-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 52px;
+  text-align: right;
+}
+
+/* ---- Presets ---- */
+#preset-select {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+#preset-select:focus {
+  border-color: var(--accent);
+}
+
+/* ---- Checkboxes ---- */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* ---- Status bar ---- */
+#status-bar {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-key {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.status-val {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Shortcuts ---- */
+#shortcuts h2 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+#shortcuts table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#shortcuts td {
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+#shortcuts td:first-child {
+  width: 50px;
+}
+
+kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-2);
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text);
+}
+
+/* ---- Responsive: narrow screens ---- */
+@media (max-width: 600px) {
+  main {
+    flex-direction: column;
+  }
+
+  #controls-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 50vh;
+  }
+
+  #canvas-container {
+    padding: 4px;
+  }
+}
