@@ -1,10 +1,11 @@
 /**
- * Entry point — wires WSClient, Renderer, Controls together.
- * Handles draw mode (mousedown + drag) and keyboard shortcuts.
+ * Entry point — wires WSClient, Renderer, Renderer3D, Controls together.
+ * Handles draw mode (mousedown + drag), keyboard shortcuts, and 2D/3D toggle.
  */
 
 import { WSClient } from './ws_client.js';
 import { Renderer } from './renderer.js';
+import { Renderer3D } from './renderer3d.js';
 import { Controls } from './controls.js';
 
 // ------------------------------------------------------------------
@@ -12,12 +13,19 @@ import { Controls } from './controls.js';
 // ------------------------------------------------------------------
 
 const canvas = document.getElementById('game-canvas');
-const renderer = new Renderer(canvas);
+const threeContainer = document.getElementById('three-container');
+
+const renderer2d = new Renderer(canvas);
+const renderer3d = new Renderer3D(threeContainer);
+
+let activeRenderer = renderer2d;
+let lastState = null; // most recent state message, for re-render on view switch
 
 const wsUrl = `ws://${location.host}/ws`;
 const ws = new WSClient(wsUrl, {
   onInit(msg) {
-    renderer.update(msg);
+    lastState = msg;
+    activeRenderer.update(msg);
     controls.populatePresets(msg.presets ?? []);
     controls.updateStatus(msg);
     // Sync speed slider with server's default
@@ -27,7 +35,8 @@ const ws = new WSClient(wsUrl, {
     if (label) label.textContent = `${msg.tps} TPS`;
   },
   onState(msg) {
-    renderer.update(msg);
+    lastState = msg;
+    activeRenderer.update(msg);
     controls.updateStatus(msg);
   },
   onError(msg) {
@@ -35,10 +44,38 @@ const ws = new WSClient(wsUrl, {
   },
 });
 
-const controls = new Controls(ws, renderer);
+const controls = new Controls(ws, renderer2d);
 
 // ------------------------------------------------------------------
-// Draw mode
+// 2D / 3D view toggle
+// ------------------------------------------------------------------
+
+const btn2d = document.getElementById('btn-view-2d');
+const btn3d = document.getElementById('btn-view-3d');
+
+function switchTo2D() {
+  activeRenderer = renderer2d;
+  canvas.style.display = '';
+  threeContainer.style.display = 'none';
+  btn2d.classList.add('active');
+  btn3d.classList.remove('active');
+  if (lastState) renderer2d.update(lastState);
+}
+
+function switchTo3D() {
+  activeRenderer = renderer3d;
+  canvas.style.display = 'none';
+  threeContainer.style.display = '';
+  btn3d.classList.add('active');
+  btn2d.classList.remove('active');
+  if (lastState) renderer3d.update(lastState);
+}
+
+btn2d?.addEventListener('click', switchTo2D);
+btn3d?.addEventListener('click', switchTo3D);
+
+// ------------------------------------------------------------------
+// Draw mode (2D canvas only)
 // ------------------------------------------------------------------
 
 let drawing = false;
@@ -69,14 +106,14 @@ canvas.addEventListener('mousedown', (e) => {
   drawing = true;
   drawAlive = getDrawMode();
   pendingCells = [];
-  const cell = renderer.pixelToCell(e.offsetX, e.offsetY);
+  const cell = renderer2d.pixelToCell(e.offsetX, e.offsetY);
   pendingCells.push([cell.row, cell.col]);
 });
 
 canvas.addEventListener('mousemove', (e) => {
-  const cell = renderer.pixelToCell(e.offsetX, e.offsetY);
-  renderer.setHoverCell(cell);
-  renderer.render();
+  const cell = renderer2d.pixelToCell(e.offsetX, e.offsetY);
+  renderer2d.setHoverCell(cell);
+  renderer2d.render();
 
   if (!drawing) return;
   pendingCells.push([cell.row, cell.col]);
@@ -102,8 +139,8 @@ canvas.addEventListener('mouseup', () => {
 });
 
 canvas.addEventListener('mouseleave', () => {
-  renderer.setHoverCell(null);
-  renderer.render();
+  renderer2d.setHoverCell(null);
+  renderer2d.render();
   if (drawing) {
     drawing = false;
     if (pendingCells.length > 0) {

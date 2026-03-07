@@ -309,6 +309,11 @@ kbd {
   color: var(--text);
 }
 
+#three-container {
+  width: 100%;
+  height: 100%;
+}
+
 /* ---- Responsive: narrow screens ---- */
 @media (max-width: 600px) {
   main {

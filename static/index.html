@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Conway's Game of Life</title>
   <link rel="stylesheet" href="/static/css/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 <body>
   <div id="app">
@@ -15,6 +23,7 @@
     <main>
       <div id="canvas-container">
         <canvas id="game-canvas"></canvas>
+        <div id="three-container" style="display:none"></div>
       </div>
 
       <aside id="controls-panel">
@@ -65,6 +74,10 @@
         <!-- Display options -->
         <section class="control-group">
           <h2>Display</h2>
+          <div class="btn-row">
+            <button id="btn-view-2d" class="btn active">2D</button>
+            <button id="btn-view-3d" class="btn">3D</button>
+          </div>
           <label class="checkbox-label">
             <input type="checkbox" id="chk-gridlines" checked />
             Show grid lines
