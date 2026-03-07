@@ -18,6 +18,7 @@ def test_all_presets_exist():
         "glider", "blinker", "toad", "beacon", "pulsar",
         "pentadecathlon", "gosper_glider_gun", "r_pentomino",
         "diehard", "acorn",
+        "herschel", "t_pentomino", "brain",
     }
     assert set(PRESET_NAMES) == expected
 
