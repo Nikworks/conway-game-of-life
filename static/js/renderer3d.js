@@ -2,14 +2,22 @@
  * Three.js 3D renderer for Conway's Game of Life.
  * Matches the public interface of Renderer (renderer.js) so main.js
  * can swap between them via `activeRenderer`.
+ *
+ * Visual design inspired by RBeaulieu/3DGameOfLife:
+ *  - Born cells:      yellow  (#ffdd00) — alive this generation for the first time
+ *  - Surviving cells: orange  (#ff6600) — alive in the previous generation too
+ *  - Bounding box:    cyan wireframe outline of the grid extent
+ *  - Point light at camera position (flashlight effect)
  */
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const SCENE_BG = 0x1a1a2e;
-const CELL_COLOR = 0x00ff88;
-const GRID_COLOR = 0x2a2a4a;
+const SCENE_BG        = 0x1a1a2e;
+const BORN_COLOR      = 0xffdd00;  // yellow  — newly alive this generation
+const SURVIVING_COLOR = 0xff6600;  // orange  — alive last generation too
+const GRID_COLOR      = 0x2a2a4a;
+const OUTLINE_COLOR   = 0x07abff;  // cyan bounding box (from reference)
 
 export class Renderer3D {
   /**
@@ -19,7 +27,13 @@ export class Renderer3D {
     this._container = container;
     this._rows = 60;
     this._cols = 80;
-    this._gridHelper = null;
+    this._gridHelper  = null;
+    this._boundingBox = null;
+
+    // Born/surviving tracking — compared each update()
+    this._prevAliveCells = new Set(); // "r,c" strings
+    this._bornColor      = new THREE.Color(BORN_COLOR);
+    this._survivingColor = new THREE.Color(SURVIVING_COLOR);
 
     // Scene
     this._scene = new THREE.Scene();
@@ -47,11 +61,15 @@ export class Renderer3D {
     this._controls.dampingFactor = 0.08;
 
     // Lights
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    this._scene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    // Ambient: soft base light
+    this._scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    // Directional: fixed fill light from upper-right
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
     dirLight.position.set(20, 40, 30);
     this._scene.add(dirLight);
+    // Point light: follows the camera (flashlight effect, from reference)
+    this._pointLight = new THREE.PointLight(0xffffff, 0.8, 500);
+    this._scene.add(this._pointLight);
 
     // InstancedMesh for alive cells (pre-allocated for max capacity)
     this._capacity = this._rows * this._cols;
@@ -62,8 +80,9 @@ export class Renderer3D {
     // Reusable dummy object — avoids per-tick allocation
     this._dummy = new THREE.Object3D();
 
-    // Grid helper
+    // Grid helper + cyan bounding box
     this._buildGridHelper();
+    this._buildBoundingBox();
 
     // Raycaster for pixelToCell
     this._raycaster = new THREE.Raycaster();
@@ -93,7 +112,6 @@ export class Renderer3D {
     this._cols = cols;
 
     if (sizeChanged) {
-      // Reallocate instanced mesh if grid grew
       const needed = rows * cols;
       if (needed > this._capacity) {
         this._capacity = needed;
@@ -103,21 +121,34 @@ export class Renderer3D {
         this._scene.add(this._cellMesh);
       }
       this._buildGridHelper();
+      this._buildBoundingBox();
+      this._prevAliveCells = new Set();
     }
 
-    // Position one cube per alive cell
+    // Classify each alive cell as born or surviving
+    const currSet = new Set(cells.map(([r, c]) => `${r},${c}`));
     const halfCols = cols / 2;
     const halfRows = rows / 2;
-
     let i = 0;
+
     for (const [r, c] of cells) {
       this._dummy.position.set(c - halfCols + 0.5, 0.5, r - halfRows + 0.5);
       this._dummy.updateMatrix();
       this._cellMesh.setMatrixAt(i, this._dummy.matrix);
+
+      // Born = not present last generation; Surviving = was alive last generation
+      const born = !this._prevAliveCells.has(`${r},${c}`);
+      this._cellMesh.setColorAt(i, born ? this._bornColor : this._survivingColor);
       i++;
     }
+
     this._cellMesh.count = i;
     this._cellMesh.instanceMatrix.needsUpdate = true;
+    if (this._cellMesh.instanceColor) {
+      this._cellMesh.instanceColor.needsUpdate = true;
+    }
+
+    this._prevAliveCells = currSet;
   }
 
   /** No-op — animation loop drives rendering continuously. */
@@ -125,7 +156,8 @@ export class Renderer3D {
 
   /** @param {boolean} value */
   setShowGridLines(value) {
-    if (this._gridHelper) this._gridHelper.visible = value;
+    if (this._gridHelper)  this._gridHelper.visible  = value;
+    if (this._boundingBox) this._boundingBox.visible = value;
   }
 
   /** No-op — hover highlight not applicable in 3D view-only mode. */
@@ -133,7 +165,6 @@ export class Renderer3D {
 
   /**
    * Convert screen pixel coords to grid cell via raycasting onto y=0 plane.
-   * Returns null if the ray misses the plane.
    * @param {number} offsetX
    * @param {number} offsetY
    * @returns {{ row: number, col: number } | null}
@@ -158,12 +189,19 @@ export class Renderer3D {
 
   _buildInstancedMesh(capacity) {
     const geo = new THREE.BoxGeometry(0.92, 1, 0.92);
-    const mat = new THREE.MeshPhongMaterial({ color: CELL_COLOR });
+    // White base so per-instance color (setColorAt) is rendered as-is
+    const mat = new THREE.MeshPhongMaterial({ color: 0xffffff });
     const mesh = new THREE.InstancedMesh(geo, mat, capacity);
     // Disable frustum culling — bounding sphere is not auto-updated when
     // instance matrices change, causing Three.js to incorrectly cull the
     // entire mesh even when cells are visible.
     mesh.frustumCulled = false;
+    // Pre-initialise instanceColor buffer at full capacity so setColorAt()
+    // writes into a correctly-sized buffer regardless of current count.
+    const defColor = new THREE.Color(SURVIVING_COLOR);
+    for (let i = 0; i < capacity; i++) {
+      mesh.setColorAt(i, defColor);
+    }
     return mesh;
   }
 
@@ -172,11 +210,28 @@ export class Renderer3D {
       this._scene.remove(this._gridHelper);
       this._gridHelper.geometry?.dispose();
     }
-    // GridHelper(size, divisions) — use the larger dimension as size
     const size = Math.max(this._rows, this._cols);
-    const divs = size;
-    this._gridHelper = new THREE.GridHelper(size, divs, GRID_COLOR, GRID_COLOR);
+    this._gridHelper = new THREE.GridHelper(size, size, GRID_COLOR, GRID_COLOR);
     this._scene.add(this._gridHelper);
+  }
+
+  _buildBoundingBox() {
+    if (this._boundingBox) {
+      this._scene.remove(this._boundingBox);
+      this._boundingBox.geometry?.dispose();
+    }
+    // Cyan wireframe outline of the cell area (cols wide × rows deep × 1 tall)
+    const boxGeo   = new THREE.BoxGeometry(this._cols, 1, this._rows);
+    const edgesGeo = new THREE.EdgesGeometry(boxGeo);
+    boxGeo.dispose();
+    const mat = new THREE.LineBasicMaterial({
+      color:       OUTLINE_COLOR,
+      transparent: true,
+      opacity:     0.6,
+    });
+    this._boundingBox = new THREE.LineSegments(edgesGeo, mat);
+    this._boundingBox.position.set(0, 0.5, 0); // vertically centred on cell height
+    this._scene.add(this._boundingBox);
   }
 
   _onResize() {
@@ -191,6 +246,8 @@ export class Renderer3D {
   _animate() {
     requestAnimationFrame(() => this._animate());
     this._controls.update();
+    // Sync point light with camera — creates a flashlight effect (from reference)
+    this._pointLight.position.copy(this._camera.position);
     this._renderer.render(this._scene, this._camera);
   }
 }
