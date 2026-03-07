@@ -59,6 +59,9 @@ export class Renderer3D {
     this._scene.add(this._cellMesh);
     this._cellMesh.count = 0;
 
+    // Reusable dummy object — avoids per-tick allocation
+    this._dummy = new THREE.Object3D();
+
     // Grid helper
     this._buildGridHelper();
 
@@ -103,15 +106,14 @@ export class Renderer3D {
     }
 
     // Position one cube per alive cell
-    const dummy = new THREE.Object3D();
     const halfCols = cols / 2;
     const halfRows = rows / 2;
 
     let i = 0;
     for (const [r, c] of cells) {
-      dummy.position.set(c - halfCols + 0.5, 0.5, r - halfRows + 0.5);
-      dummy.updateMatrix();
-      this._cellMesh.setMatrixAt(i, dummy.matrix);
+      this._dummy.position.set(c - halfCols + 0.5, 0.5, r - halfRows + 0.5);
+      this._dummy.updateMatrix();
+      this._cellMesh.setMatrixAt(i, this._dummy.matrix);
       i++;
     }
     this._cellMesh.count = i;
@@ -157,7 +159,12 @@ export class Renderer3D {
   _buildInstancedMesh(capacity) {
     const geo = new THREE.BoxGeometry(0.92, 1, 0.92);
     const mat = new THREE.MeshPhongMaterial({ color: CELL_COLOR });
-    return new THREE.InstancedMesh(geo, mat, capacity);
+    const mesh = new THREE.InstancedMesh(geo, mat, capacity);
+    // Disable frustum culling — bounding sphere is not auto-updated when
+    // instance matrices change, causing Three.js to incorrectly cull the
+    // entire mesh even when cells are visible.
+    mesh.frustumCulled = false;
+    return mesh;
   }
 
   _buildGridHelper() {

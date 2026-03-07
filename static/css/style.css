@@ -312,6 +312,21 @@ kbd {
 #three-container {
   width: 100%;
   height: 100%;
+  align-self: stretch;
+}
+
+/* ---- Preset load toast ---- */
+#preset-toast {
+  font-size: 12px;
+  color: var(--success);
+  min-height: 18px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-align: center;
+}
+
+#preset-toast.visible {
+  opacity: 1;
 }
 
 /* ---- Responsive: narrow screens ---- */

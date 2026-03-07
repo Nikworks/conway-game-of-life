@@ -16,10 +16,41 @@ const canvas = document.getElementById('game-canvas');
 const threeContainer = document.getElementById('three-container');
 
 const renderer2d = new Renderer(canvas);
-const renderer3d = new Renderer3D(threeContainer);
+
+// Renderer3D is created lazily on first switch to 3D so the container
+// already has real dimensions (clientWidth/Height > 0).
+let renderer3d = null;
 
 let activeRenderer = renderer2d;
 let lastState = null; // most recent state message, for re-render on view switch
+
+// ------------------------------------------------------------------
+// Preset loading toast
+// ------------------------------------------------------------------
+
+const presetToast = document.getElementById('preset-toast');
+let presetPending = false;
+let toastTimer = null;
+
+function showToast(text, autoHide = false) {
+  if (!presetToast) return;
+  presetToast.textContent = text;
+  presetToast.classList.add('visible');
+  clearTimeout(toastTimer);
+  if (autoHide) {
+    toastTimer = setTimeout(() => presetToast.classList.remove('visible'), 1500);
+  }
+}
+
+function hideToast() {
+  if (!presetToast) return;
+  clearTimeout(toastTimer);
+  presetToast.classList.remove('visible');
+}
+
+// ------------------------------------------------------------------
+// WebSocket
+// ------------------------------------------------------------------
 
 const wsUrl = `ws://${location.host}/ws`;
 const ws = new WSClient(wsUrl, {
@@ -38,13 +69,31 @@ const ws = new WSClient(wsUrl, {
     lastState = msg;
     activeRenderer.update(msg);
     controls.updateStatus(msg);
+    if (presetPending) {
+      presetPending = false;
+      showToast('Loaded ✓', true);
+    }
   },
   onError(msg) {
     console.warn('Server error:', msg.message);
+    presetPending = false;
+    hideToast();
   },
 });
 
 const controls = new Controls(ws, renderer2d);
+
+// ------------------------------------------------------------------
+// Intercept Load button to drive the toast
+// ------------------------------------------------------------------
+
+document.getElementById('btn-load-preset')?.addEventListener('click', () => {
+  const sel = document.getElementById('preset-select');
+  if (sel && sel.value) {
+    presetPending = true;
+    showToast('Loading…');
+  }
+});
 
 // ------------------------------------------------------------------
 // 2D / 3D view toggle
@@ -63,16 +112,30 @@ function switchTo2D() {
 }
 
 function switchTo3D() {
-  activeRenderer = renderer3d;
   canvas.style.display = 'none';
-  threeContainer.style.display = '';
+  threeContainer.style.display = '';    // show first so dimensions are non-zero
   btn3d.classList.add('active');
   btn2d.classList.remove('active');
+
+  // Lazy-init: create Renderer3D only now, when the container is visible
+  if (!renderer3d) {
+    renderer3d = new Renderer3D(threeContainer);
+    // Sync grid-lines checkbox state
+    const chk = document.getElementById('chk-gridlines');
+    if (chk) renderer3d.setShowGridLines(chk.checked);
+  }
+
+  activeRenderer = renderer3d;
   if (lastState) renderer3d.update(lastState);
 }
 
 btn2d?.addEventListener('click', switchTo2D);
 btn3d?.addEventListener('click', switchTo3D);
+
+// Grid lines: controls.js handles renderer2d; this listener covers renderer3d
+document.getElementById('chk-gridlines')?.addEventListener('change', (e) => {
+  renderer3d?.setShowGridLines(e.target.checked);
+});
 
 // ------------------------------------------------------------------
 // Draw mode (2D canvas only)
