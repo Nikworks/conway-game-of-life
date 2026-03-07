@@ -3,6 +3,8 @@
 import pytest
 from conway.game import Grid
 
+pytestmark = pytest.mark.unit
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -25,33 +27,36 @@ def test_empty_grid():
     assert g.alive_cells() == []
 
 
-def test_set_and_toggle():
+def test_toggle_cell_kills_alive_cell():
     g = alive((5, 5))
-    assert g.is_alive(5, 5)
-    g2 = g.toggle_cell(5, 5)
-    assert not g2.is_alive(5, 5)
-    g3 = g2.toggle_cell(5, 5)
-    assert g3.is_alive(5, 5)
+    result = g.toggle_cell(5, 5)
+    assert not result.is_alive(5, 5)
+
+
+def test_toggle_cell_revives_dead_cell():
+    g = Grid(rows=20, cols=20)
+    result = g.toggle_cell(5, 5)
+    assert result.is_alive(5, 5)
 
 
 def test_set_cells_alive():
     g = Grid(rows=10, cols=10)
-    g2 = g.set_cells([(1, 1), (2, 2), (3, 3)], alive=True)
-    assert g2.count() == 3
+    result = g.set_cells([(1, 1), (2, 2), (3, 3)], alive=True)
+    assert result.count() == 3
 
 
 def test_set_cells_dead():
     g = alive((1, 1), (2, 2), (3, 3))
-    g2 = g.set_cells([(1, 1), (3, 3)], alive=False)
-    assert g2.count() == 1
-    assert g2.is_alive(2, 2)
+    result = g.set_cells([(1, 1), (3, 3)], alive=False)
+    assert result.count() == 1
+    assert result.is_alive(2, 2)
 
 
 def test_clear():
     g = alive((1, 1), (2, 2))
-    g2 = g.clear()
-    assert g2.count() == 0
-    assert g2.rows == g.rows
+    result = g.clear()
+    assert result.count() == 0
+    assert result.rows == g.rows
 
 
 # ---------------------------------------------------------------------------
@@ -61,15 +66,15 @@ def test_clear():
 
 def test_underpopulation_0_neighbors_dies():
     g = alive((5, 5))
-    g2 = g.step()
-    assert not g2.is_alive(5, 5)
+    result = g.step()
+    assert not result.is_alive(5, 5)
 
 
 def test_underpopulation_1_neighbor_dies():
     g = alive((5, 5), (5, 6))
-    g2 = g.step()
-    assert not g2.is_alive(5, 5)
-    assert not g2.is_alive(5, 6)
+    result = g.step()
+    assert not result.is_alive(5, 5)
+    assert not result.is_alive(5, 6)
 
 
 # ---------------------------------------------------------------------------
@@ -80,20 +85,18 @@ def test_underpopulation_1_neighbor_dies():
 def test_survival_2_neighbors():
     # Block is a still life — each cell has exactly 2-3 neighbors
     g = alive((5, 5), (5, 6), (6, 5), (6, 6))
-    g2 = g.step()
-    assert g2.is_alive(5, 5)
-    assert g2.is_alive(5, 6)
-    assert g2.is_alive(6, 5)
-    assert g2.is_alive(6, 6)
+    result = g.step()
+    assert result.is_alive(5, 5)
+    assert result.is_alive(5, 6)
+    assert result.is_alive(6, 5)
+    assert result.is_alive(6, 6)
 
 
 def test_survival_3_neighbors():
-    # An L-shape: center cell has 2 neighbors, corner cells have 1 or 2
-    # Just confirm the block still life holds for 3 steps
-    block = alive((5, 5), (5, 6), (6, 5), (6, 6))
-    for _ in range(3):
-        block = block.step()
-    assert block.count() == 4
+    # Top-left cell of a block has exactly 3 alive neighbors and survives
+    g = alive((5, 5), (5, 6), (6, 5), (6, 6))
+    result = g.step()
+    assert result.is_alive(5, 5)  # 3 neighbors: (5,6), (6,5), (6,6)
 
 
 # ---------------------------------------------------------------------------
@@ -104,8 +107,8 @@ def test_survival_3_neighbors():
 def test_overpopulation_4_neighbors_dies():
     # Cell at (1,1) surrounded by 4 live neighbors — dies
     g = alive((0, 1), (1, 0), (1, 1), (1, 2), (2, 1))
-    g2 = g.step()
-    assert not g2.is_alive(1, 1)
+    result = g.step()
+    assert not result.is_alive(1, 1)
 
 
 # ---------------------------------------------------------------------------
@@ -116,8 +119,8 @@ def test_overpopulation_4_neighbors_dies():
 def test_birth_3_neighbors():
     # Dead cell at (1,1) with exactly 3 alive neighbors
     g = alive((0, 1), (1, 0), (2, 1))
-    g2 = g.step()
-    assert g2.is_alive(1, 1)
+    result = g.step()
+    assert result.is_alive(1, 1)
 
 
 # ---------------------------------------------------------------------------
@@ -125,21 +128,24 @@ def test_birth_3_neighbors():
 # ---------------------------------------------------------------------------
 
 
-def test_blinker_oscillation():
-    # Horizontal blinker
+def test_blinker_horizontal_becomes_vertical():
     g = alive((5, 4), (5, 5), (5, 6))
-    g2 = g.step()
-    # Should become vertical
-    assert g2.is_alive(4, 5)
-    assert g2.is_alive(5, 5)
-    assert g2.is_alive(6, 5)
-    assert not g2.is_alive(5, 4)
-    assert not g2.is_alive(5, 6)
-    # Step back to horizontal
-    g3 = g2.step()
-    assert g3.is_alive(5, 4)
-    assert g3.is_alive(5, 5)
-    assert g3.is_alive(5, 6)
+    result = g.step()
+    assert result.is_alive(4, 5)
+    assert result.is_alive(5, 5)
+    assert result.is_alive(6, 5)
+    assert not result.is_alive(5, 4)
+    assert not result.is_alive(5, 6)
+
+
+def test_blinker_vertical_becomes_horizontal():
+    g = alive((4, 5), (5, 5), (6, 5))
+    result = g.step()
+    assert result.is_alive(5, 4)
+    assert result.is_alive(5, 5)
+    assert result.is_alive(5, 6)
+    assert not result.is_alive(4, 5)
+    assert not result.is_alive(6, 5)
 
 
 # ---------------------------------------------------------------------------
@@ -148,15 +154,13 @@ def test_blinker_oscillation():
 
 
 def test_block_is_still_life():
-    block = alive((5, 5), (5, 6), (6, 5), (6, 6))
-    g2 = block.step()
-    assert block == g2 or (
-        g2.is_alive(5, 5)
-        and g2.is_alive(5, 6)
-        and g2.is_alive(6, 5)
-        and g2.is_alive(6, 6)
-        and g2.count() == 4
-    )
+    g = alive((5, 5), (5, 6), (6, 5), (6, 6))
+    result = g.step()
+    assert result.count() == 4
+    assert result.is_alive(5, 5)
+    assert result.is_alive(5, 6)
+    assert result.is_alive(6, 5)
+    assert result.is_alive(6, 6)
 
 
 # ---------------------------------------------------------------------------
@@ -165,18 +169,17 @@ def test_block_is_still_life():
 
 
 def test_glider_moves():
-    # Classic glider at top-left, with enough room
+    # Classic glider; after 4 steps it shifts (+1 row, +1 col)
     g = Grid(rows=20, cols=20, alive=[
         (1, 2),
         (2, 3),
         (3, 1), (3, 2), (3, 3),
     ])
-    initial_cells = set(g.alive_cells())
-    for _ in range(4):
-        g = g.step()
-    # After 4 steps the glider has moved 1 cell diagonally
-    assert set(g.alive_cells()) != initial_cells
-    assert g.count() == 5
+    g = g.step()
+    g = g.step()
+    g = g.step()
+    result = g.step()
+    assert set(result.alive_cells()) == {(2, 3), (3, 4), (4, 2), (4, 3), (4, 4)}
 
 
 # ---------------------------------------------------------------------------
@@ -185,20 +188,19 @@ def test_glider_moves():
 
 
 def test_no_wrap_top_edge():
-    # Blinker touching top edge should not wrap
+    # Horizontal blinker on row 0: top neighbors don't exist, so behavior differs.
+    # Result is two cells — no wrapping to row -1.
     g = Grid(rows=10, cols=10, alive=[(0, 4), (0, 5), (0, 6)])
-    g2 = g.step()
-    # Cells above row 0 don't exist, so blinker evolves differently
-    # Cells at row -1 must NOT appear
-    for c in range(10):
-        assert not g2.is_alive(-1, c)
+    result = g.step()
+    assert set(result.alive_cells()) == {(0, 5), (1, 5)}
 
 
 def test_no_wrap_right_edge():
+    # Vertical blinker on col 9: right neighbor col 10 doesn't exist.
+    # Result is two cells — no wrapping to col 10.
     g = Grid(rows=10, cols=10, alive=[(4, 9), (5, 9), (6, 9)])
-    g2 = g.step()
-    for r in range(10):
-        assert not g2.is_alive(r, 10)
+    result = g.step()
+    assert set(result.alive_cells()) == {(5, 8), (5, 9)}
 
 
 # ---------------------------------------------------------------------------
@@ -257,11 +259,11 @@ def test_generation_increments():
 
 def test_resize_clips_cells():
     g = Grid(rows=10, cols=10, alive=[(9, 9), (0, 0)])
-    g2 = g.resize(5, 5)
-    assert g2.rows == 5
-    assert g2.cols == 5
-    assert not g2.is_alive(9, 9)
-    assert g2.is_alive(0, 0)
+    result = g.resize(5, 5)
+    assert result.rows == 5
+    assert result.cols == 5
+    assert not result.is_alive(9, 9)
+    assert result.is_alive(0, 0)
 
 
 # ---------------------------------------------------------------------------

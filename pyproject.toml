@@ -26,6 +26,10 @@ packages = ["src/conway"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "unit: pure domain logic, no I/O",
+    "integration: tests that spin up the FastAPI app",
+]
 
 [dependency-groups]
 dev = [

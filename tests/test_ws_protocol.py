@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 from conway.app import app
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def client():
@@ -72,7 +74,6 @@ def test_ws_init_message(client):
 def test_ws_step(client):
     with client.websocket_connect("/ws") as ws:
         ws_recv(ws)  # init
-        # Load a blinker first
         ws_send(ws, type="load_preset", name="blinker")
         ws_recv(ws)  # state after load
         ws_send(ws, type="step")
@@ -86,17 +87,23 @@ def test_ws_step(client):
 # ---------------------------------------------------------------------------
 
 
-def test_ws_toggle_cell(client):
+def test_ws_toggle_cell_on(client):
     with client.websocket_connect("/ws") as ws:
         ws_recv(ws)  # init
         ws_send(ws, type="toggle_cell", row=10, col=10)
         msg = ws_recv(ws)
         assert msg["type"] == "state"
         assert [10, 10] in msg["cells"]
-        # Toggle again to kill it
+
+
+def test_ws_toggle_cell_off(client):
+    with client.websocket_connect("/ws") as ws:
+        ws_recv(ws)  # init
+        ws_send(ws, type="set_cells", cells=[[10, 10]], alive=True)
+        ws_recv(ws)  # consume state
         ws_send(ws, type="toggle_cell", row=10, col=10)
-        msg2 = ws_recv(ws)
-        assert [10, 10] not in msg2["cells"]
+        msg = ws_recv(ws)
+        assert [10, 10] not in msg["cells"]
 
 
 # ---------------------------------------------------------------------------
@@ -143,15 +150,20 @@ def test_ws_set_speed(client):
         assert msg["tps"] == 10.0
 
 
-def test_ws_set_speed_clamped(client):
+def test_ws_set_speed_clamped_above_max(client):
     with client.websocket_connect("/ws") as ws:
         ws_recv(ws)  # init
         ws_send(ws, type="set_speed", tps=999)
         msg = ws_recv(ws)
         assert msg["tps"] <= 30.0
+
+
+def test_ws_set_speed_clamped_below_min(client):
+    with client.websocket_connect("/ws") as ws:
+        ws_recv(ws)  # init
         ws_send(ws, type="set_speed", tps=0)
-        msg2 = ws_recv(ws)
-        assert msg2["tps"] >= 0.5
+        msg = ws_recv(ws)
+        assert msg["tps"] >= 0.5
 
 
 # ---------------------------------------------------------------------------
