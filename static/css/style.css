@@ -15,12 +15,12 @@
   --border: #2e3248;
   --text: #e2e4f0;
   --text-muted: #7880a0;
-  --accent: #5b7cf7;
-  --accent-hover: #7293ff;
+  --accent: #8eaaff;
+  --accent-hover: #a3bdff;
   --danger: #e05252;
   --danger-hover: #f06060;
   --success: #52c47a;
-  --cell-alive: #5b7cf7;
+  --cell-alive: #8eaaff;
   --cell-dead: #0f1117;
   --grid-line: rgba(255,255,255,0.04);
 
@@ -211,7 +211,8 @@ main {
 }
 
 /* ---- Presets ---- */
-#preset-select {
+#preset-select,
+#preset-select-3d {
   width: 100%;
   padding: 7px 8px;
   border: 1px solid var(--border);
@@ -220,10 +221,10 @@ main {
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
-  outline: none;
 }
 
-#preset-select:focus {
+#preset-select:focus,
+#preset-select-3d:focus {
   border-color: var(--accent);
 }
 
@@ -329,6 +330,109 @@ kbd {
   opacity: 1;
 }
 
+/* ---- Skip navigation ---- */
+.skip-nav {
+  position: absolute;
+  transform: translateY(-100%);
+  background: var(--accent);
+  color: #000;
+  padding: 8px 16px;
+  z-index: 100;
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.skip-nav:focus {
+  transform: translateY(0);
+}
+
+/* ---- Screen-reader only ---- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Focus rings ---- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- Hidden utility ---- */
+.hidden {
+  display: none;
+}
+
+/* ---- Hall of Fame ---- */
+#hof-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+}
+
+#hof-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+#hof-list li:first-child {
+  color: var(--success);
+  font-weight: 600;
+}
+
+#hof-name {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+}
+
+#hof-name:focus {
+  border-color: var(--accent);
+}
+
+.hof-save-row {
+  display: flex;
+  gap: 6px;
+}
+
+.hof-save-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+#hof-toast {
+  font-size: 12px;
+  color: var(--success);
+  min-height: 18px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+#hof-toast.visible {
+  opacity: 1;
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
 /* ---- Responsive: narrow screens ---- */
 @media (max-width: 600px) {
   main {
@@ -345,4 +449,23 @@ kbd {
   #canvas-container {
     padding: 4px;
   }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  #speed-slider::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  #speed-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ---- Game canvas touch ---- */
+#game-canvas {
+  touch-action: none;
 }

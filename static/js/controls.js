@@ -27,11 +27,14 @@ export class Controls {
   updateStatus(state) {
     this._running = state.running;
 
-    // Play/Pause button label
+    // Play/Pause button label + aria-pressed
     const btn = document.getElementById('btn-play-pause');
     if (btn) {
-      btn.textContent = state.running ? '⏸ Pause' : '▶ Play';
+      btn.innerHTML = state.running
+        ? '<span aria-hidden="true">⏸</span><span class="sr-only">Pause</span>'
+        : '<span aria-hidden="true">▶</span><span class="sr-only">Play</span>';
       btn.classList.toggle('primary', !state.running);
+      btn.setAttribute('aria-pressed', String(state.running));
     }
 
     document.getElementById('stat-generation').textContent = state.generation;

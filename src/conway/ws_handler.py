@@ -10,7 +10,9 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from conway.game import Grid
+from conway.game3d import Grid3D
 from conway.patterns import PRESET_NAMES, center_pattern, get_pattern
+from conway.patterns3d import PRESET_NAMES_3D, center_pattern_3d, get_pattern_3d
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,7 @@ router = APIRouter()
 
 DEFAULT_ROWS = 60
 DEFAULT_COLS = 80
+DEFAULT_LAYERS = 21
 DEFAULT_TPS = 5.0
 MIN_TPS = 0.5
 MAX_TPS = 30.0
@@ -28,7 +31,8 @@ class GameSession:
 
     def __init__(self, websocket: WebSocket) -> None:
         self.ws = websocket
-        self.grid = Grid(rows=DEFAULT_ROWS, cols=DEFAULT_COLS)
+        self.grid: Grid | Grid3D = Grid(rows=DEFAULT_ROWS, cols=DEFAULT_COLS)
+        self.variant = "2d"
         self.running = False
         self.tps = DEFAULT_TPS
         self._loop_task: asyncio.Task | None = None
@@ -38,7 +42,7 @@ class GameSession:
     # ------------------------------------------------------------------
 
     def _state_message(self, msg_type: str = "state") -> dict[str, Any]:
-        return {
+        msg: dict[str, Any] = {
             "type": msg_type,
             "generation": self.grid.generation,
             "rows": self.grid.rows,
@@ -46,11 +50,16 @@ class GameSession:
             "cells": self.grid.alive_cells(),
             "running": self.running,
             "tps": self.tps,
+            "variant": self.variant,
         }
+        if self.variant == "3d" and isinstance(self.grid, Grid3D):
+            msg["layers"] = self.grid.layers
+        return msg
 
     def _init_message(self) -> dict[str, Any]:
         msg = self._state_message("init")
         msg["presets"] = PRESET_NAMES
+        msg["presets_3d"] = PRESET_NAMES_3D
         return msg
 
     async def _send(self, data: dict[str, Any]) -> None:
@@ -130,7 +139,8 @@ class GameSession:
         if row is None or col is None:
             await self._send_error("toggle_cell requires 'row' and 'col'")
             return
-        self.grid = self.grid.toggle_cell(int(row), int(col))
+        if isinstance(self.grid, Grid):
+            self.grid = self.grid.toggle_cell(int(row), int(col))
         await self._send_state()
 
     async def handle_set_cells(self, msg: dict) -> None:
@@ -139,26 +149,53 @@ class GameSession:
         if not isinstance(cells, list):
             await self._send_error("set_cells requires 'cells' list")
             return
-        self.grid = self.grid.set_cells([tuple(c) for c in cells], bool(alive))
+        if isinstance(self.grid, Grid):
+            self.grid = self.grid.set_cells([tuple(c) for c in cells], bool(alive))
         await self._send_state()
 
     async def handle_load_preset(self, msg: dict) -> None:
         name = msg.get("name", "")
-        try:
-            pattern = get_pattern(name)
-        except ValueError as exc:
-            await self._send_error(str(exc))
-            return
         was_running = self.running
         if was_running:
             await self.stop_loop()
-        centered = center_pattern(pattern, self.grid.rows, self.grid.cols)
-        self.grid = Grid(
-            rows=self.grid.rows,
-            cols=self.grid.cols,
-            alive=centered,
-            generation=0,
-        )
+
+        if self.variant == "3d":
+            try:
+                pattern_data = get_pattern_3d(name)
+            except ValueError as exc:
+                await self._send_error(str(exc))
+                return
+            assert isinstance(self.grid, Grid3D)
+            centered = center_pattern_3d(
+                pattern_data["cells"],
+                self.grid.layers,
+                self.grid.rows,
+                self.grid.cols,
+            )
+            self.grid = Grid3D(
+                layers=self.grid.layers,
+                rows=self.grid.rows,
+                cols=self.grid.cols,
+                alive=centered,
+                generation=0,
+                birth_set=pattern_data["birth_set"],
+                survival_set=pattern_data["survival_set"],
+            )
+        else:
+            try:
+                pattern = get_pattern(name)
+            except ValueError as exc:
+                await self._send_error(str(exc))
+                return
+            assert isinstance(self.grid, Grid)
+            centered = center_pattern(pattern, self.grid.rows, self.grid.cols)
+            self.grid = Grid(
+                rows=self.grid.rows,
+                cols=self.grid.cols,
+                alive=centered,
+                generation=0,
+            )
+
         if was_running:
             self.start_loop()
         await self._send_state()
@@ -174,7 +211,28 @@ class GameSession:
         if rows < 5 or cols < 5 or rows > 200 or cols > 300:
             await self._send_error("resize: dimensions out of range (5-200 rows, 5-300 cols)")
             return
-        self.grid = self.grid.resize(rows, cols)
+        if isinstance(self.grid, Grid):
+            self.grid = self.grid.resize(rows, cols)
+        await self._send_state()
+
+    async def handle_set_variant(self, msg: dict) -> None:
+        variant = msg.get("variant", "2d")
+        if variant not in ("2d", "3d"):
+            await self._send_error("set_variant: 'variant' must be '2d' or '3d'")
+            return
+
+        await self.stop_loop()
+        self.variant = variant
+
+        if variant == "3d":
+            self.grid = Grid3D(
+                layers=DEFAULT_LAYERS,
+                rows=DEFAULT_ROWS,
+                cols=DEFAULT_COLS,
+            )
+        else:
+            self.grid = Grid(rows=DEFAULT_ROWS, cols=DEFAULT_COLS)
+
         await self._send_state()
 
     # ------------------------------------------------------------------
@@ -191,6 +249,7 @@ class GameSession:
         "set_cells": handle_set_cells,
         "load_preset": handle_load_preset,
         "resize": handle_resize,
+        "set_variant": handle_set_variant,
     }
 
     async def dispatch(self, raw: str) -> None:

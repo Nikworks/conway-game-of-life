@@ -27,8 +27,10 @@ export class Renderer3D {
     this._container = container;
     this._rows = 60;
     this._cols = 80;
+    this._layers = null; // null = 2D mode
     this._gridHelper  = null;
     this._boundingBox = null;
+    this._reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // Born/surviving tracking — compared each update()
     this._prevAliveCells = new Set(); // "r,c" strings
@@ -102,17 +104,20 @@ export class Renderer3D {
 
   /**
    * Update from a server state message and redraw.
-   * @param {{ rows: number, cols: number, cells: [number, number][] }} state
+   * @param {{ rows: number, cols: number, cells: [number, number][]|[number, number, number][], layers?: number }} state
    */
   update(state) {
     const { rows, cols, cells } = state;
-    const sizeChanged = rows !== this._rows || cols !== this._cols;
+    const layers = state.layers ?? null;
+    const is3d = layers !== null;
+    const sizeChanged = rows !== this._rows || cols !== this._cols || layers !== this._layers;
 
     this._rows = rows;
     this._cols = cols;
+    this._layers = layers;
 
     if (sizeChanged) {
-      const needed = rows * cols;
+      const needed = is3d ? rows * cols * layers : rows * cols;
       if (needed > this._capacity) {
         this._capacity = needed;
         this._scene.remove(this._cellMesh);
@@ -125,20 +130,30 @@ export class Renderer3D {
       this._prevAliveCells = new Set();
     }
 
-    // Classify each alive cell as born or surviving
-    const currSet = new Set(cells.map(([r, c]) => `${r},${c}`));
+    // Key cells for born/surviving tracking
+    const currSet = new Set(
+      is3d
+        ? cells.map(([layer, r, c]) => `${layer},${r},${c}`)
+        : cells.map(([r, c]) => `${r},${c}`)
+    );
     const halfCols = cols / 2;
     const halfRows = rows / 2;
     let i = 0;
 
-    for (const [r, c] of cells) {
-      this._dummy.position.set(c - halfCols + 0.5, 0.5, r - halfRows + 0.5);
+    for (const cell of cells) {
+      if (is3d) {
+        const [layer, r, c] = cell;
+        this._dummy.position.set(c - halfCols + 0.5, layer + 0.5, r - halfRows + 0.5);
+        const born = !this._prevAliveCells.has(`${layer},${r},${c}`);
+        this._cellMesh.setColorAt(i, born ? this._bornColor : this._survivingColor);
+      } else {
+        const [r, c] = cell;
+        this._dummy.position.set(c - halfCols + 0.5, 0.5, r - halfRows + 0.5);
+        const born = !this._prevAliveCells.has(`${r},${c}`);
+        this._cellMesh.setColorAt(i, born ? this._bornColor : this._survivingColor);
+      }
       this._dummy.updateMatrix();
       this._cellMesh.setMatrixAt(i, this._dummy.matrix);
-
-      // Born = not present last generation; Surviving = was alive last generation
-      const born = !this._prevAliveCells.has(`${r},${c}`);
-      this._cellMesh.setColorAt(i, born ? this._bornColor : this._survivingColor);
       i++;
     }
 
@@ -149,6 +164,28 @@ export class Renderer3D {
     }
 
     this._prevAliveCells = currSet;
+
+    // In reduced-motion mode, render a single frame here instead of rAF loop
+    if (this._reducedMotion) {
+      this._controls.update();
+      this._renderer.render(this._scene, this._camera);
+    }
+  }
+
+  /**
+   * Adjust camera and grid for 2D vs 3D variant.
+   * @param {boolean} is3d
+   */
+  setVariant(is3d) {
+    if (is3d) {
+      this._camera.position.set(0, 40, 40);
+      this._camera.lookAt(0, 10, 0);
+    } else {
+      this._camera.position.set(0, 40, 55);
+      this._camera.lookAt(0, 0, 0);
+    }
+    this._controls.target.set(0, is3d ? 10 : 0, 0);
+    this._controls.update();
   }
 
   /** No-op — animation loop drives rendering continuously. */
@@ -244,6 +281,7 @@ export class Renderer3D {
   }
 
   _animate() {
+    if (this._reducedMotion) return; // static frames only in reduced-motion mode
     requestAnimationFrame(() => this._animate());
     this._controls.update();
     // Sync point light with camera — creates a flashlight effect (from reference)
