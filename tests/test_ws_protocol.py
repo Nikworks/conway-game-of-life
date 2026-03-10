@@ -4,14 +4,20 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+import conway.leaderboard as lb_module
 from conway.app import app
 
 pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-def client():
-    return TestClient(app)
+def client(tmp_path, monkeypatch):
+    # Redirect DB to a temp file so tests don't share state.
+    # Use TestClient as a context manager so the lifespan (init_db) runs.
+    db_file = tmp_path / "test_hof.db"
+    monkeypatch.setattr(lb_module, "DB_PATH", db_file)
+    with TestClient(app) as c:
+        yield c
 
 
 # ---------------------------------------------------------------------------
@@ -215,3 +221,71 @@ def test_ws_unknown_type(client):
         ws_send(ws, type="does_not_exist")
         msg = ws_recv(ws)
         assert msg["type"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# Hall of Fame REST endpoints
+# ---------------------------------------------------------------------------
+
+
+def test_get_leaderboard_empty(client):
+    resp = client.get("/api/leaderboard")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_post_score_and_retrieve(client):
+    payload = {
+        "player_name": "TestPlayer",
+        "preset_used": "acorn",
+        "generation": 5206,
+        "alive_count": 633,
+        "cells": [[1, 2], [3, 4]],
+    }
+    post_resp = client.post("/api/scores", json=payload)
+    assert post_resp.status_code == 201
+    saved = post_resp.json()
+    assert saved["player_name"] == "TestPlayer"
+    assert saved["generation"] == 5206
+
+    get_resp = client.get("/api/leaderboard")
+    assert get_resp.status_code == 200
+    rows = get_resp.json()
+    assert len(rows) == 1
+    assert rows[0]["player_name"] == "TestPlayer"
+
+
+def test_leaderboard_top_10_only(client):
+    for i in range(12):
+        client.post("/api/scores", json={
+            "player_name": f"P{i}",
+            "generation": i * 10,
+            "alive_count": i,
+            "cells": [],
+        })
+    resp = client.get("/api/leaderboard")
+    assert len(resp.json()) == 10
+
+
+# ---------------------------------------------------------------------------
+# WebSocket: set_variant
+# ---------------------------------------------------------------------------
+
+
+def test_ws_set_variant_3d(client):
+    with client.websocket_connect("/ws") as ws:
+        ws_recv(ws)  # init
+        ws_send(ws, type="set_variant", variant="3d")
+        msg = ws_recv(ws)
+        assert msg["type"] == "state"
+        assert msg.get("variant") == "3d"
+
+
+def test_ws_set_variant_back_to_2d(client):
+    with client.websocket_connect("/ws") as ws:
+        ws_recv(ws)  # init
+        ws_send(ws, type="set_variant", variant="3d")
+        ws_recv(ws)  # state after 3d
+        ws_send(ws, type="set_variant", variant="2d")
+        msg = ws_recv(ws)
+        assert msg.get("variant") == "2d"

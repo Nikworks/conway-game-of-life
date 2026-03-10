@@ -3,10 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Conway's Game of Life</title>
   <link rel="stylesheet" href="/static/css/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 <body>
+  <a href="#game-canvas" class="skip-nav">Skip to game</a>
+
   <div id="app">
     <header>
       <h1>Conway's Game of Life</h1>
@@ -14,24 +26,42 @@
 
     <main>
       <div id="canvas-container">
-        <canvas id="game-canvas"></canvas>
+        <canvas id="game-canvas"
+                role="img"
+                aria-label="Conway's Game of Life grid"
+                tabindex="0"></canvas>
+        <div id="three-container" style="display:none"></div>
       </div>
 
       <aside id="controls-panel">
         <!-- Playback -->
-        <section class="control-group">
-          <h2>Playback</h2>
+        <section class="control-group" aria-labelledby="h2-playback">
+          <h2 id="h2-playback">Playback</h2>
           <div class="btn-row">
-            <button id="btn-play-pause" class="btn primary" title="Space">▶ Play</button>
-            <button id="btn-step" class="btn" title="→">⏭ Step</button>
-            <button id="btn-clear" class="btn danger" title="C">✕ Clear</button>
+            <button id="btn-play-pause" class="btn primary"
+                    aria-keyshortcuts="Space"
+                    aria-pressed="false"
+                    title="Space">
+              <span aria-hidden="true">▶</span><span class="sr-only">Play</span>
+            </button>
+            <button id="btn-step" class="btn"
+                    aria-keyshortcuts="ArrowRight"
+                    title="→">
+              <span aria-hidden="true">⏭</span><span class="sr-only">Step</span>
+            </button>
+            <button id="btn-clear" class="btn danger"
+                    aria-keyshortcuts="KeyC"
+                    title="C">
+              <span aria-hidden="true">✕</span><span class="sr-only">Clear</span>
+            </button>
           </div>
         </section>
 
         <!-- Speed -->
-        <section class="control-group">
-          <h2>Speed</h2>
+        <section class="control-group" aria-labelledby="h2-speed">
+          <h2 id="h2-speed">Speed</h2>
           <div class="speed-row">
+            <label for="speed-slider" class="sr-only">Speed in ticks per second</label>
             <input
               id="speed-slider"
               type="range"
@@ -39,47 +69,96 @@
               max="30"
               step="0.5"
               value="5"
+              aria-labelledby="h2-speed"
             />
-            <span id="speed-label">5 TPS</span>
+            <span id="speed-label" aria-live="polite">5 TPS</span>
           </div>
         </section>
 
         <!-- Draw mode -->
-        <section class="control-group">
-          <h2>Draw Mode</h2>
+        <section class="control-group" aria-labelledby="h2-draw">
+          <h2 id="h2-draw">Draw Mode</h2>
           <div class="btn-row">
-            <button id="btn-draw-alive" class="btn active" data-mode="alive">Draw Alive</button>
-            <button id="btn-draw-dead" class="btn" data-mode="dead">Draw Dead</button>
+            <button id="btn-draw-alive" class="btn active"
+                    data-mode="alive"
+                    aria-pressed="true">Draw Alive</button>
+            <button id="btn-draw-dead" class="btn"
+                    data-mode="dead"
+                    aria-pressed="false">Draw Dead</button>
           </div>
         </section>
 
+        <!-- Fill Random -->
+        <section class="control-group" aria-labelledby="h2-fill">
+          <h2 id="h2-fill">Random Fill</h2>
+          <div class="speed-row">
+            <label for="fill-density" class="sr-only">Fill density percentage</label>
+            <input
+              id="fill-density"
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value="30"
+              aria-labelledby="h2-fill"
+            />
+            <span id="fill-density-label" aria-live="polite">30%</span>
+          </div>
+          <button id="btn-fill-random" class="btn">Fill</button>
+        </section>
+
         <!-- Presets -->
-        <section class="control-group">
-          <h2>Presets</h2>
+        <section class="control-group" aria-labelledby="h2-presets">
+          <h2 id="h2-presets">Presets</h2>
+          <label for="preset-select" class="sr-only">Select preset</label>
           <select id="preset-select">
             <option value="">— select preset —</option>
           </select>
           <button id="btn-load-preset" class="btn">Load</button>
+          <div id="preset-toast" aria-live="assertive" aria-atomic="true"></div>
+        </section>
+
+        <!-- Presets 3D (hidden until 3D Rules mode) -->
+        <section class="control-group hidden" id="section-presets-3d" aria-labelledby="h2-presets-3d">
+          <h2 id="h2-presets-3d">3D Presets</h2>
+          <label for="preset-select-3d" class="sr-only">Select 3D preset</label>
+          <select id="preset-select-3d">
+            <option value="">— select 3D preset —</option>
+          </select>
+          <button id="btn-load-preset-3d" class="btn">Load 3D</button>
         </section>
 
         <!-- Display options -->
-        <section class="control-group">
-          <h2>Display</h2>
+        <section class="control-group" aria-labelledby="h2-display">
+          <h2 id="h2-display">Display</h2>
+          <div class="btn-row">
+            <button id="btn-view-2d" class="btn active"
+                    aria-pressed="true">2D</button>
+            <button id="btn-view-3d" class="btn"
+                    aria-pressed="false">3D</button>
+          </div>
           <label class="checkbox-label">
             <input type="checkbox" id="chk-gridlines" checked />
             Show grid lines
           </label>
+          <label class="checkbox-label hidden" id="label-3d-rules">
+            <input type="checkbox" id="chk-3d-rules" />
+            3D Rules
+          </label>
         </section>
 
         <!-- Status bar -->
-        <section id="status-bar">
+        <section id="status-bar" aria-labelledby="h2-status">
+          <h2 id="h2-status" class="sr-only">Game Status</h2>
           <div class="status-item">
             <span class="status-key">Generation</span>
-            <span class="status-val" id="stat-generation">0</span>
+            <span class="status-val" id="stat-generation"
+                  aria-live="polite" aria-atomic="true">0</span>
           </div>
           <div class="status-item">
             <span class="status-key">Alive</span>
-            <span class="status-val" id="stat-alive">0</span>
+            <span class="status-val" id="stat-alive"
+                  aria-live="polite" aria-atomic="true">0</span>
           </div>
           <div class="status-item">
             <span class="status-key">TPS</span>
@@ -87,17 +166,31 @@
           </div>
           <div class="status-item">
             <span class="status-key">Status</span>
-            <span class="status-val" id="stat-status">Paused</span>
+            <span class="status-val" id="stat-status"
+                  aria-live="polite" aria-atomic="true">Paused</span>
           </div>
         </section>
 
+        <!-- Hall of Fame -->
+        <section class="control-group" id="hof-section" aria-labelledby="h2-hof">
+          <h2 id="h2-hof">Hall of Fame</h2>
+          <div class="hof-save-row">
+            <label for="hof-name" class="sr-only">Your name</label>
+            <input id="hof-name" type="text" placeholder="Your name" maxlength="32" />
+            <button id="btn-save-score" class="btn">Save Score</button>
+          </div>
+          <div id="hof-toast" aria-live="polite" aria-atomic="true"></div>
+          <ol id="hof-list" aria-live="polite" aria-label="Top 10 Hall of Fame scores"></ol>
+        </section>
+
         <!-- Keyboard shortcuts -->
-        <section id="shortcuts">
-          <h2>Keyboard</h2>
+        <section id="shortcuts" aria-labelledby="h2-shortcuts">
+          <h2 id="h2-shortcuts">Keyboard</h2>
           <table>
-            <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
-            <tr><td><kbd>→</kbd></td><td>Step</td></tr>
-            <tr><td><kbd>C</kbd></td><td>Clear</td></tr>
+            <caption class="sr-only">Keyboard shortcuts</caption>
+            <tr><th scope="row"><kbd>Space</kbd></th><td>Play / Pause</td></tr>
+            <tr><th scope="row"><kbd>→</kbd></th><td>Step</td></tr>
+            <tr><th scope="row"><kbd>C</kbd></th><td>Clear</td></tr>
           </table>
         </section>
       </aside>

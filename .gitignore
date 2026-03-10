@@ -35,5 +35,14 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Claude Code
+.claude/
+
 # Logs
 *.log
+
+# Runtime databases
+*.db
+
+# Local MCP config
+.mcp.json

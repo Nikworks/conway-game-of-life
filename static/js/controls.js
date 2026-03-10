@@ -18,6 +18,7 @@ export class Controls {
     this._bindSpeed();
     this._bindPresets();
     this._bindGridLines();
+    this._bindFillDensity();
   }
 
   // ------------------------------------------------------------------
@@ -27,11 +28,14 @@ export class Controls {
   updateStatus(state) {
     this._running = state.running;
 
-    // Play/Pause button label
+    // Play/Pause button label + aria-pressed
     const btn = document.getElementById('btn-play-pause');
     if (btn) {
-      btn.textContent = state.running ? '⏸ Pause' : '▶ Play';
+      btn.innerHTML = state.running
+        ? '<span aria-hidden="true">⏸</span><span class="sr-only">Pause</span>'
+        : '<span aria-hidden="true">▶</span><span class="sr-only">Play</span>';
       btn.classList.toggle('primary', !state.running);
+      btn.setAttribute('aria-pressed', String(state.running));
     }
 
     document.getElementById('stat-generation').textContent = state.generation;
@@ -105,6 +109,21 @@ export class Controls {
   _bindGridLines() {
     document.getElementById('chk-gridlines')?.addEventListener('change', (e) => {
       this._renderer.setShowGridLines(e.target.checked);
+    });
+  }
+
+  _bindFillDensity() {
+    const slider = document.getElementById('fill-density');
+    const label = document.getElementById('fill-density-label');
+    if (!slider) return;
+
+    slider.addEventListener('input', () => {
+      if (label) label.textContent = `${slider.value}%`;
+    });
+
+    document.getElementById('btn-fill-random')?.addEventListener('click', () => {
+      const density = parseFloat(slider.value) / 100;
+      this._ws.fillRandom(density);
     });
   }
 }
