@@ -88,6 +88,25 @@
           </div>
         </section>
 
+        <!-- Fill Random -->
+        <section class="control-group" aria-labelledby="h2-fill">
+          <h2 id="h2-fill">Random Fill</h2>
+          <div class="speed-row">
+            <label for="fill-density" class="sr-only">Fill density percentage</label>
+            <input
+              id="fill-density"
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+              value="30"
+              aria-labelledby="h2-fill"
+            />
+            <span id="fill-density-label" aria-live="polite">30%</span>
+          </div>
+          <button id="btn-fill-random" class="btn">Fill</button>
+        </section>
+
         <!-- Presets -->
         <section class="control-group" aria-labelledby="h2-presets">
           <h2 id="h2-presets">Presets</h2>

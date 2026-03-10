@@ -86,4 +86,8 @@ export class WSClient {
   setCells(cells, alive) {
     this._send({ type: 'set_cells', cells, alive });
   }
+
+  fillRandom(density) {
+    this._send({ type: 'fill_random', density });
+  }
 }

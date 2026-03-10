@@ -175,7 +175,8 @@ main {
   gap: 8px;
 }
 
-#speed-slider {
+#speed-slider,
+#fill-density {
   flex: 1;
   appearance: none;
   height: 4px;
@@ -185,7 +186,8 @@ main {
   cursor: pointer;
 }
 
-#speed-slider::-webkit-slider-thumb {
+#speed-slider::-webkit-slider-thumb,
+#fill-density::-webkit-slider-thumb {
   appearance: none;
   width: 14px;
   height: 14px;
@@ -194,7 +196,8 @@ main {
   cursor: pointer;
 }
 
-#speed-slider::-moz-range-thumb {
+#speed-slider::-moz-range-thumb,
+#fill-density::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -203,7 +206,8 @@ main {
   border: none;
 }
 
-#speed-label {
+#speed-label,
+#fill-density-label {
   font-size: 12px;
   color: var(--text-muted);
   min-width: 52px;

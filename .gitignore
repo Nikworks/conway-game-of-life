@@ -40,3 +40,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Runtime databases
+*.db
+
+# Local MCP config
+.mcp.json

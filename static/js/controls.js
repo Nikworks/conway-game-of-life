@@ -18,6 +18,7 @@ export class Controls {
     this._bindSpeed();
     this._bindPresets();
     this._bindGridLines();
+    this._bindFillDensity();
   }
 
   // ------------------------------------------------------------------
@@ -108,6 +109,21 @@ export class Controls {
   _bindGridLines() {
     document.getElementById('chk-gridlines')?.addEventListener('change', (e) => {
       this._renderer.setShowGridLines(e.target.checked);
+    });
+  }
+
+  _bindFillDensity() {
+    const slider = document.getElementById('fill-density');
+    const label = document.getElementById('fill-density-label');
+    if (!slider) return;
+
+    slider.addEventListener('input', () => {
+      if (label) label.textContent = `${slider.value}%`;
+    });
+
+    document.getElementById('btn-fill-random')?.addEventListener('click', () => {
+      const density = parseFloat(slider.value) / 100;
+      this._ws.fillRandom(density);
     });
   }
 }

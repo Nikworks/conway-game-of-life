@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -215,6 +216,29 @@ class GameSession:
             self.grid = self.grid.resize(rows, cols)
         await self._send_state()
 
+    async def handle_fill_random(self, msg: dict) -> None:
+        density = msg.get("density", 0.3)
+        try:
+            density = float(density)
+        except (TypeError, ValueError):
+            await self._send_error("fill_random requires numeric 'density'")
+            return
+        density = max(0.0, min(1.0, density))
+        if isinstance(self.grid, Grid):
+            new_alive = frozenset(
+                (r, c)
+                for r in range(self.grid.rows)
+                for c in range(self.grid.cols)
+                if random.random() < density
+            )
+            self.grid = Grid(
+                rows=self.grid.rows,
+                cols=self.grid.cols,
+                alive=new_alive,
+                generation=self.grid.generation,
+            )
+        await self._send_state()
+
     async def handle_set_variant(self, msg: dict) -> None:
         variant = msg.get("variant", "2d")
         if variant not in ("2d", "3d"):
@@ -250,6 +274,7 @@ class GameSession:
         "load_preset": handle_load_preset,
         "resize": handle_resize,
         "set_variant": handle_set_variant,
+        "fill_random": handle_fill_random,
     }
 
     async def dispatch(self, raw: str) -> None:
